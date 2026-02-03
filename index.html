@@ -86,7 +86,35 @@
     .gift{ background:#fff; border-radius:10px; padding:10px 14px; width:160px; box-shadow:0 8px 20px rgba(0,0,0,.06); cursor:pointer; text-align:center; }
     .doodle{ font-size:30px; margin-bottom:6px; }
 
-    .photoBox{ width:220px; height:140px; background:#fff; border-radius:8px; display:inline-block; margin:8px; box-shadow:0 6px 18px rgba(0,0,0,.06); overflow:hidden; }
+    /* photo box + remove button + caption */
+    .photoBox{ position:relative; width:220px; height:180px; background:#fff; border-radius:8px; display:inline-block; margin:8px; box-shadow:0 6px 18px rgba(0,0,0,.06); overflow:hidden; vertical-align:top; padding-bottom:6px; }
+    .photoBox img{ display:block; width:100%; height:140px; object-fit:cover; border-bottom: none; }
+    .removePhotoBtn{
+      position:absolute;
+      top:6px;
+      right:6px;
+      background:rgba(0,0,0,0.55);
+      color:#fff;
+      border:none;
+      border-radius:6px;
+      padding:4px 7px;
+      font-weight:700;
+      cursor:pointer;
+      z-index:2;
+      line-height:1;
+    }
+    .removePhotoBtn:hover{ background:rgba(0,0,0,0.7); }
+
+    /* caption: cursive/italic style */
+    .photoCaption{
+      font-family: "Brush Script MT", "Segoe Script", "Comic Sans MS", cursive;
+      font-style:italic;
+      text-align:center;
+      margin-top:6px;
+      font-size:14px;
+      color:#2b2b2b;
+      user-select:none;
+    }
 
     .finalVideo{ max-width:760px; margin:0 auto; }
 
@@ -94,7 +122,13 @@
     @media (max-width:480px){
       .button-zone{ height:180px; }
       .yes,.no{ padding:12px 18px; font-size:16px; }
+      .photoBox{ width:46%; }
     }
+
+    /* small toolbar for upload + clear + export */
+    .photoToolbar{ display:flex; gap:8px; justify-content:center; align-items:center; margin-top:8px; }
+    .photoToolbar button.action{ position:static; transform:none; padding:8px 10px; font-size:14px; }
+    .dragover{ outline:3px dashed rgba(0,0,0,0.08); border-radius:8px; }
   </style>
 </head>
 <body>
@@ -203,17 +237,17 @@
       <h2>open a gift 🎁</h2>
       <div class="giftsGrid" style="margin-top:10px;">
         <div class="gift" id="gift1">
-          <div class="doodle">😼</div>
+          <div class="doodle">🎲</div>
           <div><strong>Gift 1</strong></div>
           <div class="small">a little quiz</div>
         </div>
         <div class="gift" id="gift2">
-          <div class="doodle">a teddy hold love letter</div>
+          <div class="doodle">✉️</div>
           <div><strong>Gift 2</strong></div>
           <div class="small">a letter</div>
         </div>
         <div class="gift" id="gift3">
-          <div class="doodle">🥹💋</div>
+          <div class="doodle">📸</div>
           <div><strong>Gift 3</strong></div>
           <div class="small">our photos</div>
         </div>
@@ -253,22 +287,28 @@
       <div class="letterCard">
         <pre style="white-space:pre-wrap; margin:0; font-family:inherit; color:var(--muted);">
 my baby,
-                 thank you for being my person. i want to hold your hand through every season of life. you are my home. you are my everything. and i love you so so much bbu. Be the sa,e as you are and sorry for irritating you. no one can replace you from my heart. You are always my no. 1 
+                 thank you for being my person. i want to hold your hand through every season of life. you are my home. you are my everything. and i love you so so much bbu. Be the sa,e as you are and[...]
 forever yours,❤️
         </pre>
       </div>
       <div style="margin-top:10px;"><button id="gift2Back" class="action no" style="position:static; transform:none; padding:8px 12px;">back</button></div>
     </section>
 
-    <!-- GIFT 3: PHOTOS (placeholders) -->
+    <!-- GIFT 3: PHOTOS (upload + clear + export + remove each) -->
     <section id="gift3Frame" class="resultFrame">
       <h2><strong>look at this cutie😭</strong></h2>
-      <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-top:12px;">
-        <!-- Replace src with your real images later -->
-        <div class="photoBox"><img src="https://via.placeholder.com/220x140?text=photo+1" alt="photo1" style="width:100%; height:100%; object-fit:cover;"></div>
-        <div class="photoBox"><img src="https://via.placeholder.com/220x140?text=photo+2" alt="photo2" style="width:100%; height:100%; object-fit:cover;"></div>
-        <div class="photoBox"><img src="https://via.placeholder.com/220x140?text=photo+3" alt="photo3" style="width:100%; height:100%; object-fit:cover;"></div>
+
+      <div class="photoToolbar">
+        <button id="uploadPhotosBtn" class="action yes">Upload photos</button>
+        <button id="clearPhotosBtn" class="action no">Clear photos</button>
+        <button id="exportPhotosBtn" class="action yes">Export photos (standalone)</button>
+        <input id="photoUpload" type="file" accept="image/*" multiple class="hidden" />
       </div>
+
+      <div id="photoGallery" style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-top:12px;">
+        <!-- gallery starts empty; user uploads will fill this -->
+      </div>
+
       <div style="margin-top:12px;"><button id="gift3Back" class="action no" style="position:static; transform:none; padding:8px 12px;">back</button></div>
     </section>
 
@@ -300,7 +340,13 @@ HAPPY VALENTINE'S DAY and every day after, i'm grateful to call you mine.
   <script>
     // confetti
     const canvas = document.getElementById('confettiCanvas');
-    function resizeCanvas(){ const dpr = Math.max(1, window.devicePixelRatio || 1); canvas.width = Math.floor(window.innerWidth * dpr); canvas.height = Math.floor(window.innerHeight * dpr); canvas.style.width = '100vw'; canvas.style.height = '100vh'; }
+    function resizeCanvas(){
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+    }
     resizeCanvas(); window.addEventListener('resize', resizeCanvas);
     const conf = confetti.create(canvas, { resize:false, useWorker:true });
     function celebrate(){
@@ -352,6 +398,22 @@ HAPPY VALENTINE'S DAY and every day after, i'm grateful to call you mine.
     const quizBack = document.getElementById('quizBack');
     const quizResult = document.getElementById('quizResult');
     const quizResultBack = document.getElementById('quizDoneBack');
+
+    // photo elements
+    const uploadPhotosBtn = document.getElementById('uploadPhotosBtn');
+    const clearPhotosBtn = document.getElementById('clearPhotosBtn');
+    const exportPhotosBtn = document.getElementById('exportPhotosBtn');
+    const photoInput = document.getElementById('photoUpload');
+    const photoGallery = document.getElementById('photoGallery');
+
+    // captions mapping (in order)
+    const captionsMap = [
+      'myy❤️',
+      'your🤭',
+      'us🧿🥹',
+      'lovee💋😍',
+      'my forever😚'
+    ];
 
     // utility
     function hideAllFrames(){
@@ -470,6 +532,160 @@ HAPPY VALENTINE'S DAY and every day after, i'm grateful to call you mine.
     document.getElementById('gift2Back').addEventListener('click', ()=> showFrame('gifts'));
     document.getElementById('gift3Back').addEventListener('click', ()=> showFrame('gifts'));
     document.getElementById('quizDoneBack').addEventListener('click', ()=> showFrame('gifts'));
+
+    // Photo upload / preview for gift3 with remove + clear-all + drag/drop + paste support
+    (function(){
+      if(!uploadPhotosBtn || !photoInput || !photoGallery) return;
+
+      // helper to append a File (image) to gallery
+      function addImageFile(file){
+        if(!file || !file.type || !file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = e.target.result;
+          const box = document.createElement('div');
+          box.className = 'photoBox';
+
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'removePhotoBtn';
+          removeBtn.type = 'button';
+          removeBtn.title = 'Remove photo';
+          removeBtn.textContent = '✕';
+          removeBtn.addEventListener('click', () => {
+            box.remove();
+          });
+
+          const img = document.createElement('img');
+          img.src = dataUrl;
+          img.alt = file.name || 'uploaded photo';
+
+          // determine caption based on current index (before append)
+          const existing = photoGallery.querySelectorAll('.photoBox').length;
+          const captionText = captionsMap[existing] || '';
+
+          const caption = document.createElement('div');
+          caption.className = 'photoCaption';
+          caption.textContent = captionText;
+
+          box.appendChild(removeBtn);
+          box.appendChild(img);
+          box.appendChild(caption);
+          photoGallery.appendChild(box);
+        };
+        reader.onerror = () => console.error('FileReader error for file', file.name);
+        reader.readAsDataURL(file);
+      }
+
+      // handle FileList or Array of File objects
+      function handleFilesList(list){
+        const files = Array.from(list || []);
+        const maxToShow = 12; // optional limit
+        files.slice(0, maxToShow).forEach(f => addImageFile(f));
+      }
+
+      // click -> file chooser
+      uploadPhotosBtn.addEventListener('click', () => {
+        photoInput.click();
+      });
+      photoInput.addEventListener('change', (ev) => {
+        handleFilesList(ev.target.files);
+        photoInput.value = '';
+      });
+
+      // remove all
+      clearPhotosBtn.addEventListener('click', () => {
+        photoGallery.innerHTML = '';
+      });
+
+      // drag & drop on gallery
+      photoGallery.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        photoGallery.classList.add('dragover');
+      });
+      photoGallery.addEventListener('dragleave', () => {
+        photoGallery.classList.remove('dragover');
+      });
+      photoGallery.addEventListener('drop', (e) => {
+        e.preventDefault();
+        photoGallery.classList.remove('dragover');
+        const dtFiles = e.dataTransfer.files;
+        if(dtFiles && dtFiles.length) handleFilesList(dtFiles);
+      });
+
+      // paste from clipboard
+      document.addEventListener('paste', (e) => {
+        const items = (e.clipboardData && e.clipboardData.items) || [];
+        let found = false;
+        for (let i = 0; i < items.length; i++){
+          const item = items[i];
+          if(item.kind === 'file' && item.type.startsWith('image/')){
+            const file = item.getAsFile();
+            addImageFile(file);
+            found = true;
+          }
+        }
+        if(!found){
+          const text = (e.clipboardData && e.clipboardData.getData('text/html')) ||
+                       (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
+          const dataUrlMatch = text && text.match(/data:image\/[a-zA-Z]+;base64,[^\"]+/);
+          if(dataUrlMatch){
+            const dataUrl = dataUrlMatch[0];
+            fetch(dataUrl).then(res => res.blob()).then(blob => {
+              const f = new File([blob], 'pasted-image.png', { type: blob.type });
+              addImageFile(f);
+            }).catch(()=>{});
+          }
+        }
+      });
+    })();
+
+    // Export gallery images into one standalone HTML file (embeds images as data URLs and captions)
+    function exportStandaloneHTML() {
+      const boxes = Array.from(document.querySelectorAll('#photoGallery .photoBox'));
+      if (!boxes.length) { alert('No images to export'); return; }
+
+      const imagesHtml = boxes.map(box => {
+        const img = box.querySelector('img');
+        const capEl = box.querySelector('.photoCaption');
+        const captionText = capEl ? capEl.textContent.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+        const src = img ? img.src : '';
+        return `<div style="width:320px;height:auto;overflow:hidden;border-radius:8px;margin:8px;text-align:center;">
+                  <img src="${src}" alt="" style="width:100%;height:200px;object-fit:cover;display:block" />
+                  <div style="font-family: 'Brush Script MT', cursive; font-style:italic; margin-top:8px; font-size:16px;">${captionText}</div>
+                </div>`;
+      }).join('\n');
+
+      const css = `
+        body{ font-family:system-ui,Arial; padding:20px; background:#fff; color:#111 }
+        h1{ text-align:center; margin-bottom:18px }
+        .gallery{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center }
+      `;
+
+      const html = `<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Photos</title><style>${css}</style></head>
+<body>
+  <h1>Photos</h1>
+  <div class="gallery">
+    ${imagesHtml}
+  </div>
+</body>
+</html>`;
+
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'photos-embedded.html';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+
+    // bind export button
+    if (exportPhotosBtn) exportPhotosBtn.addEventListener('click', exportStandaloneHTML);
 
     // Quiz implementation: single-question flow
     // Quiz data
